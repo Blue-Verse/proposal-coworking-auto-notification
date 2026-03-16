@@ -1,0 +1,806 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="공유오피스 관리 프로그램 자동 알림 기능 추가 개발 — 프로젝트 제안서" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link href="https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/variable/woff2/SUIT-Variable.css" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['SUIT Variable', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace']
+          },
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              200: '#bae6fd',
+              600: '#0284c7',
+              700: '#0369a1'
+            }
+          },
+          boxShadow: {
+            soft: '0 10px 30px -18px rgba(15, 23, 42, 0.35)'
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    :root { color-scheme: light; font-size: 16px; }
+    body {
+      font-family: 'SUIT Variable', sans-serif;
+      font-size: 1rem;
+      background-image:
+        radial-gradient(circle at 12% 18%, rgba(14, 165, 233, 0.08), transparent 42%),
+        radial-gradient(circle at 88% 82%, rgba(2, 132, 199, 0.06), transparent 48%);
+    }
+    .doc-content h1, .doc-content h2, .doc-content h3, .doc-content h4 {
+      color: rgb(15 23 42); font-weight: 700; letter-spacing: -0.01em;
+      line-height: 1.3; margin-top: 1.6em; margin-bottom: 0.7em;
+    }
+    .doc-content h1 { font-size: 2rem; margin-top: 0.2em; }
+    .doc-content h2 { font-size: 1.4rem; }
+    .doc-content h3 { font-size: 1.15rem; }
+    .doc-content p, .doc-content li {
+      color: rgb(51 65 85); line-height: 1.8; font-size: 1rem;
+    }
+    .doc-content p, .doc-content ul, .doc-content ol,
+    .doc-content table, .doc-content pre, .doc-content blockquote {
+      margin-bottom: 1rem;
+    }
+    .doc-content ul, .doc-content ol { padding-left: 1.2rem; }
+    .doc-content ul { list-style: disc; }
+    .doc-content ol { list-style: decimal; }
+    .doc-content table {
+      width: 100%; border-collapse: collapse;
+      border: 1px solid rgb(226 232 240); border-radius: 0.75rem;
+      overflow: hidden; font-size: 1rem;
+    }
+    .doc-content th, .doc-content td {
+      border: 1px solid rgb(226 232 240); padding: 0.7rem 0.8rem;
+      text-align: left; vertical-align: top;
+    }
+    .doc-content th {
+      background: rgb(248 250 252); color: rgb(30 41 59); font-weight: 600;
+    }
+    .doc-content pre, .doc-content code {
+      font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+    .doc-content pre {
+      background: rgb(15 23 42); color: rgb(226 232 240);
+      padding: 1rem; border-radius: 0.75rem; overflow-x: auto;
+      font-size: 1rem; line-height: 1.65;
+    }
+    .doc-content p code, .doc-content li code,
+    .doc-content td code, .doc-content th code {
+      background: rgb(241 245 249); color: rgb(15 23 42);
+      border: 1px solid rgb(226 232 240); border-radius: 0.4rem;
+      padding: 0.08rem 0.4rem; font-size: 1em;
+    }
+    .doc-content blockquote {
+      border-left: 3px solid rgb(14 165 233); padding-left: 0.85rem;
+      color: rgb(71 85 105); background: rgb(240 249 255);
+      border-radius: 0.5rem; padding-top: 0.55rem; padding-bottom: 0.55rem;
+    }
+    .text-xs { font-size: 1rem !important; }
+    .timeline { position: relative; padding-left: 2rem; }
+    .timeline::before {
+      content: ''; position: absolute; left: 0.6rem; top: 0.25rem; bottom: 0.25rem;
+      width: 2px; background: rgb(186 230 253);
+    }
+    .timeline-item { position: relative; margin-bottom: 1.75rem; }
+    .timeline-item::before {
+      content: ''; position: absolute; left: -1.65rem; top: 0.35rem;
+      width: 0.75rem; height: 0.75rem; border-radius: 50%;
+      background: rgb(2 132 199); border: 3px solid rgb(224 242 254);
+    }
+    .page-section { display: none; }
+    .page-section.active { display: block; }
+    #sidebar-backdrop { display: none; }
+    #sidebar-backdrop.open { display: block; }
+    @media (max-width: 1023px) {
+      #sidebar { transform: translateX(-100%); transition: transform 0.2s ease; position: fixed; top: 0; left: 0; z-index: 40; height: 100vh; width: 80vw; max-width: 320px; }
+      #sidebar.open { transform: translateX(0); }
+    }
+  </style>
+  <title>공유오피스 관리 프로그램 자동 알림 기능 추가 개발 — 프로젝트 제안서</title>
+</head>
+<body class="text-slate-800 font-sans antialiased">
+  <div class="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-10">
+
+    <!-- Header -->
+    <header class="mb-6 rounded-2xl border border-slate-200/70 bg-white/85 px-5 py-3 shadow-soft backdrop-blur">
+      <div class="flex flex-wrap items-center gap-3">
+        <button id="sidebar-toggle" class="lg:hidden inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-medium text-slate-700 hover:border-sky-300 hover:text-sky-700">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+          메뉴
+        </button>
+        <a href="#home" class="inline-flex items-center shrink-0 text-sm font-bold tracking-tight text-slate-800">
+          프로젝트 제안서
+        </a>
+        <div class="hidden sm:block ml-auto text-right">
+          <p class="text-sm font-semibold tracking-[0.04em] text-sky-700/90">공유오피스 관리 프로그램 자동 알림 기능 추가 개발</p>
+          <p class="text-xs text-slate-400">프로젝트 제안서</p>
+        </div>
+      </div>
+    </header>
+
+    <div class="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+
+      <!-- Sidebar -->
+      <div id="sidebar-backdrop" class="fixed inset-0 bg-black/30 z-30 lg:hidden" onclick="closeSidebar()"></div>
+      <aside id="sidebar" class="rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-soft backdrop-blur lg:sticky lg:top-6 lg:h-[calc(100vh-4rem)] lg:overflow-auto">
+        <nav id="nav" class="space-y-1">
+          <a href="#home" data-page="home" class="nav-link block rounded-xl border px-3 py-2 text-sm border-sky-200 bg-sky-50 font-medium text-sky-700">홈</a>
+          <div class="my-3 border-t border-slate-200"></div>
+          <p class="mb-2 mt-1 px-1 text-sm font-semibold tracking-[0.14em] text-slate-400">제안서</p>
+          <a href="#overview" data-page="overview" class="nav-link block rounded-xl border border-transparent px-3 py-2 text-sm text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900">프로젝트 소개</a>
+          <a href="#estimate" data-page="estimate" class="nav-link block rounded-xl border border-transparent px-3 py-2 text-sm text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900">견적서</a>
+          <a href="#manday" data-page="manday" class="nav-link block rounded-xl border border-transparent px-3 py-2 text-sm text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900">공수계산서</a>
+          <a href="#prd" data-page="prd" class="nav-link block rounded-xl border border-transparent px-3 py-2 text-sm text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900">PRD</a>
+          <div class="my-3 border-t border-slate-200"></div>
+          <p class="mb-2 mt-1 px-1 text-sm font-semibold tracking-[0.14em] text-slate-400">일정 & 경험</p>
+          <a href="#timeline" data-page="timeline" class="nav-link block rounded-xl border border-transparent px-3 py-2 text-sm text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900">일정 제안</a>
+          <a href="#portfolio" data-page="portfolio" class="nav-link block rounded-xl border border-transparent px-3 py-2 text-sm text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900">유사 프로젝트 경험</a>
+        </nav>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="min-w-0">
+
+        <!-- PAGE: Home -->
+        <div id="page-home" class="page-section active space-y-6">
+          <div class="rounded-2xl border border-slate-200/70 bg-white/95 p-6 shadow-soft backdrop-blur md:p-8">
+            <p class="mb-2 text-xs font-semibold tracking-[0.2em] text-sky-700/80">프로젝트 제안서</p>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">공유오피스 관리 프로그램 자동 알림 기능 추가 개발</h1>
+            <p class="mt-3 max-w-3xl text-sm leading-7 text-slate-600 md:text-base">기존 C# 공유오피스 관리 프로그램에 미납 자동 안내 및 계약 갱신 사전 안내 메일 기능을 추가하여, 운영 효율을 높이고 관리 누락을 방지합니다.</p>
+            <div class="mt-4 flex flex-wrap items-center gap-2">
+              <span class="inline-flex rounded-full border border-sky-200 bg-sky-100 px-2.5 py-1 text-sm font-semibold tracking-[0.12em] text-sky-700">530만원 (VAT 별도)</span>
+              <span class="inline-flex rounded-full border border-sky-200 bg-sky-100 px-2.5 py-1 text-sm font-semibold tracking-[0.12em] text-sky-700">14일</span>
+              <span class="inline-flex rounded-full border border-amber-200 bg-amber-100 px-2.5 py-1 text-sm font-semibold tracking-[0.12em] text-amber-700">PC 프로그램 / C#</span>
+              <a href="https://www.wishket.com/project/153544/" target="_blank" rel="noopener noreferrer"
+                 class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-sm font-medium text-slate-500 transition hover:border-sky-300 hover:text-sky-700">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                원본 공고
+              </a>
+            </div>
+          </div>
+
+          <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <a href="#overview" class="group rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-soft transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white">
+              <div class="mb-3 inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold tracking-[0.12em] bg-sky-100 text-sky-700 border-sky-200">소개</div>
+              <h2 class="text-lg font-semibold tracking-tight text-slate-900 group-hover:text-sky-700">프로젝트 소개</h2>
+              <p class="mt-2 text-sm leading-7 text-slate-600">프로젝트 분석, 핵심 요구사항 정리, 제안 포인트</p>
+            </a>
+            <a href="#estimate" class="group rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-soft transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white">
+              <div class="mb-3 inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold tracking-[0.12em] bg-sky-100 text-sky-700 border-sky-200">비용</div>
+              <h2 class="text-lg font-semibold tracking-tight text-slate-900 group-hover:text-sky-700">견적서</h2>
+              <p class="mt-2 text-sm leading-7 text-slate-600">항목별 비용 산출 근거 및 상세 견적</p>
+            </a>
+            <a href="#manday" class="group rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-soft transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white">
+              <div class="mb-3 inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold tracking-[0.12em] bg-sky-100 text-sky-700 border-sky-200">공수</div>
+              <h2 class="text-lg font-semibold tracking-tight text-slate-900 group-hover:text-sky-700">공수계산서</h2>
+              <p class="mt-2 text-sm leading-7 text-slate-600">기능별 개발 공수(man-day) 산출 내역</p>
+            </a>
+            <a href="#prd" class="group rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-soft transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white">
+              <div class="mb-3 inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold tracking-[0.12em] bg-amber-100 text-amber-700 border-amber-200">기획</div>
+              <h2 class="text-lg font-semibold tracking-tight text-slate-900 group-hover:text-sky-700">PRD</h2>
+              <p class="mt-2 text-sm leading-7 text-slate-600">기능 요구사항 정의서, 사용자 스토리, 기술 제약</p>
+            </a>
+            <a href="#timeline" class="group rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-soft transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white">
+              <div class="mb-3 inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold tracking-[0.12em] bg-amber-100 text-amber-700 border-amber-200">일정</div>
+              <h2 class="text-lg font-semibold tracking-tight text-slate-900 group-hover:text-sky-700">일정 제안</h2>
+              <p class="mt-2 text-sm leading-7 text-slate-600">단계별 마일스톤 및 산출물 일정표</p>
+            </a>
+            <a href="#portfolio" class="group rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-soft transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white">
+              <div class="mb-3 inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold tracking-[0.12em] bg-amber-100 text-amber-700 border-amber-200">경험</div>
+              <h2 class="text-lg font-semibold tracking-tight text-slate-900 group-hover:text-sky-700">유사 프로젝트 경험</h2>
+              <p class="mt-2 text-sm leading-7 text-slate-600">유사 프로젝트 수행 경험 및 기술 스택</p>
+            </a>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div class="rounded-2xl border border-slate-200/70 bg-white/90 p-4 text-center shadow-soft backdrop-blur">
+              <p class="text-2xl font-bold text-sky-700">13+</p>
+              <p class="mt-1 text-sm text-slate-500">완료 프로젝트</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200/70 bg-white/90 p-4 text-center shadow-soft backdrop-blur">
+              <p class="text-2xl font-bold text-sky-700">7년+</p>
+              <p class="mt-1 text-sm text-slate-500">개발 경력</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200/70 bg-white/90 p-4 text-center shadow-soft backdrop-blur">
+              <p class="text-2xl font-bold text-sky-700">3건</p>
+              <p class="mt-1 text-sm text-slate-500">유사 프로젝트</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200/70 bg-white/90 p-4 text-center shadow-soft backdrop-blur">
+              <p class="text-2xl font-bold text-sky-700">14일</p>
+              <p class="mt-1 text-sm text-slate-500">제안 기간</p>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-sky-200/70 bg-gradient-to-br from-sky-50 to-brand-50 p-6 text-center shadow-soft md:p-10">
+            <h2 class="text-xl font-bold tracking-tight text-slate-900 md:text-2xl">함께 만들어 가겠습니다</h2>
+            <p class="mx-auto mt-3 max-w-lg text-sm leading-7 text-slate-600">각 메뉴를 클릭하시면 상세 내용을 확인하실 수 있습니다.</p>
+          </div>
+        </div>
+
+        <!-- PAGE: 프로젝트 소개 -->
+        <div id="page-overview" class="page-section space-y-6">
+          <div class="rounded-2xl border border-slate-200/70 bg-white/95 p-5 shadow-soft backdrop-blur md:p-8">
+            <article class="doc-content">
+              <h1>프로젝트 소개</h1>
+              <blockquote>기존 C# 공유오피스 관리 프로그램에 미납 자동 안내 및 계약 갱신 사전 안내 메일 기능을 추가하여, 운영 효율을 높이고 관리 누락을 방지합니다.</blockquote>
+
+              <h2>프로젝트 개요</h2>
+              <table>
+                <tr><th>항목</th><th>내용</th></tr>
+                <tr><td>프로젝트명</td><td><a href="https://www.wishket.com/project/153544/" target="_blank" rel="noopener noreferrer" class="text-sky-700 underline decoration-sky-300 hover:decoration-sky-500">공유오피스 관리 프로그램 자동 알림 기능 추가 개발</a></td></tr>
+                <tr><td>카테고리</td><td>PC 프로그램 / C#</td></tr>
+                <tr><td>제안 금액</td><td>530만원 (VAT 별도)</td></tr>
+                <tr><td>제안 기간</td><td>14일</td></tr>
+                <tr><td>핵심 기술</td><td>C#, SQL Server, SMTP, Windows Task Scheduler</td></tr>
+              </table>
+
+              <h2>핵심 요구사항 분석</h2>
+              <ul>
+                <li><strong>미납 자동 안내 메일</strong> — 청구서 발행 후 미납 상태인 고객에게 설정된 기준일(3일/7일 등)에 자동 안내 메일 발송</li>
+                <li><strong>계약 갱신 사전 안내 메일</strong> — 계약 종료 예정 고객에게 종료 30일 전 갱신 안내 메일 자동 발송</li>
+                <li><strong>기존 시스템 유지</strong> — 기존 DB 구조 변경 없이, 기존 메일 발송 기능을 활용한 자동화</li>
+                <li><strong>설정 관리 기능</strong> — 미납 기준일, 계약 갱신 기준일 등 관리자 설정 UI</li>
+                <li><strong>[옵션] SMS/카카오 알림톡</strong> — 미납 확인율 향상을 위한 문자/카카오 발송 기능 (별도 견적)</li>
+              </ul>
+
+              <h2>제안 포인트</h2>
+              <h3>1. 기존 시스템 활용 극대화</h3>
+              <p>기존에 구현된 청구서 이메일 발송 기능(SMTP)을 분석하여 동일한 발송 인프라를 자동 알림에 재활용합니다. 추가 외부 서비스 도입 없이 안정적으로 기능을 확장할 수 있습니다.</p>
+
+              <h3>2. 유연한 설정 기반 자동화</h3>
+              <p>미납 기준일(3일, 7일 등)과 계약 갱신 사전 알림일(30일 전 등)을 관리자가 직접 설정할 수 있도록 구현하여, 운영 정책 변경 시 코드 수정 없이 대응 가능합니다.</p>
+
+              <h3>3. 유사 프로젝트 수행 경험</h3>
+              <p>전자결재 SaaS(EZ-Approve), 시니어 케어 관리 플랫폼(Harmony Link), VC 펀드 관리 플랫폼(Series-B) 등 자동 알림 및 이메일/SMS 발송 기능을 포함한 관리 시스템을 다수 구축한 경험이 있습니다. 이를 바탕으로 효율적으로 진행합니다.</p>
+
+              <h2>사용 기술 및 툴</h2>
+              <h3>개발 기술</h3>
+              <div class="flex flex-wrap gap-2 not-prose mb-4">
+                <span class="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">C#</span>
+                <span class="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">.NET Framework</span>
+                <span class="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">SQL Server</span>
+                <span class="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">SMTP</span>
+                <span class="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">Windows Forms / WPF</span>
+                <span class="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">Windows Task Scheduler</span>
+              </div>
+              <h3>협업 및 커뮤니케이션</h3>
+              <div class="flex flex-wrap gap-2 not-prose">
+                <span class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-medium text-amber-700">Slack / 카카오톡</span>
+                <span class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-medium text-amber-700">Zoom / Google Meet</span>
+                <span class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-medium text-amber-700">GitHub</span>
+                <span class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-medium text-amber-700">Notion / Google Docs</span>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <!-- PAGE: 견적서 -->
+        <div id="page-estimate" class="page-section space-y-6">
+          <div class="rounded-2xl border border-slate-200/70 bg-white/95 p-5 shadow-soft backdrop-blur md:p-8">
+            <article class="doc-content">
+              <h1>견적서</h1>
+              <blockquote>본 견적서는 프로젝트 요구사항 분석을 기반으로 산출되었습니다.</blockquote>
+
+              <h2>견적 요약</h2>
+              <table>
+                <tr><th>항목</th><th>내용</th></tr>
+                <tr><td>프로젝트명</td><td>공유오피스 관리 프로그램 자동 알림 기능 추가 개발</td></tr>
+                <tr><td>제안 금액</td><td><strong>530만원 (VAT 별도)</strong></td></tr>
+                <tr><td>제안 기간</td><td>14일</td></tr>
+                <tr><td>견적 유효기간</td><td>제안일로부터 30일</td></tr>
+              </table>
+
+              <h2>상세 견적 내역</h2>
+              <table>
+                <thead>
+                  <tr><th>구분</th><th>항목</th><th>수량</th><th>단가</th><th>금액</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>분석/설계</td><td>기존 시스템 분석, 알림 로직 설계</td><td>1식</td><td>-</td><td>80만원</td></tr>
+                  <tr><td>개발</td><td>미납 자동 안내 메일 기능 (스케줄러, 조건 쿼리, 발송)</td><td>1식</td><td>-</td><td>150만원</td></tr>
+                  <tr><td>개발</td><td>계약 갱신 사전 안내 메일 기능</td><td>1식</td><td>-</td><td>100만원</td></tr>
+                  <tr><td>개발</td><td>알림 설정 관리 UI 및 발송 이력 관리</td><td>1식</td><td>-</td><td>100만원</td></tr>
+                  <tr><td>개발</td><td>메일 템플릿 작성</td><td>1식</td><td>-</td><td>30만원</td></tr>
+                  <tr><td>QA/배포</td><td>테스트, 배포 패키지, 인수인계</td><td>1식</td><td>-</td><td>70만원</td></tr>
+                </tbody>
+                <tfoot>
+                  <tr><th colspan="4">합계 (VAT 별도)</th><th>530만원</th></tr>
+                </tfoot>
+              </table>
+
+              <h2>SMS/카카오 알림톡 옵션 (선택)</h2>
+              <table>
+                <thead>
+                  <tr><th>구분</th><th>항목</th><th>금액</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>개발</td><td>SMS 또는 카카오 알림톡 API 연동</td><td>80만원</td></tr>
+                  <tr><td>개발</td><td>미납 단계별 발송 채널 설정 (이메일/문자/카카오)</td><td>40만원</td></tr>
+                </tbody>
+                <tfoot>
+                  <tr><th colspan="2">옵션 추가 비용</th><th>+120만원</th></tr>
+                  <tr><th colspan="2">옵션 포함 총액 (VAT 별도)</th><th>650만원</th></tr>
+                </tfoot>
+              </table>
+
+              <h2>산정 근거</h2>
+              <ul>
+                <li>기존 시스템 분석(1.5 M/D) + 개발(7.0 M/D) + QA/배포(1.5 M/D) + 버퍼(0.5 M/D) = 총 10.5 M/D 기반 산정</li>
+                <li>유사 관리 시스템 프로젝트(EZ-Approve, Harmony Link) 수행 경험을 바탕으로 효율적 개발</li>
+                <li>기존 메일 발송 기능 활용으로 추가 인프라 비용 불필요</li>
+                <li>1개월 무상 하자 보수 포함</li>
+              </ul>
+
+              <h2>포함 사항</h2>
+              <ul>
+                <li>소스 코드 전체 이관</li>
+                <li>개발 문서 (기술 명세서, 설정 가이드)</li>
+                <li>1개월 무상 하자 보수</li>
+                <li>배포 환경 세팅 (1회)</li>
+              </ul>
+
+              <h2>불포함 사항</h2>
+              <ul>
+                <li>SMS/카카오 알림톡 발송 비용 (통신사/카카오 API 이용료)</li>
+                <li>기존 프로그램 기능 수정 또는 리팩토링</li>
+                <li>하자 보수 기간 이후 유지보수</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+
+        <!-- PAGE: 공수계산서 -->
+        <div id="page-manday" class="page-section space-y-6">
+          <div class="rounded-2xl border border-slate-200/70 bg-white/95 p-5 shadow-soft backdrop-blur md:p-8">
+            <article class="doc-content">
+              <h1>공수계산서</h1>
+              <blockquote>기능별 개발 공수(Man-Day)를 산출하여 일정과 비용의 근거를 제시합니다.</blockquote>
+
+              <h2>공수 요약</h2>
+              <table>
+                <tr><th>구분</th><th>공수 (M/D)</th><th>비율</th></tr>
+                <tr><td>분석/설계</td><td>1.5 M/D</td><td>14%</td></tr>
+                <tr><td>개발</td><td>7.0 M/D</td><td>67%</td></tr>
+                <tr><td>QA/배포</td><td>1.5 M/D</td><td>14%</td></tr>
+                <tr><td>버퍼</td><td>0.5 M/D</td><td>5%</td></tr>
+                <tr><th>합계</th><th>10.5 M/D</th><th>100%</th></tr>
+              </table>
+
+              <h2>기능별 상세 공수</h2>
+              <table>
+                <thead>
+                  <tr><th>기능</th><th>세부 작업</th><th>담당</th><th>공수 (M/D)</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td rowspan="2">기존 시스템 분석</td><td>소스코드 구조 및 DB 스키마 분석</td><td>설계</td><td>1.0</td></tr>
+                  <tr><td>기존 메일 발송 로직 분석</td><td>설계</td><td>0.5</td></tr>
+                  <tr><td rowspan="3">미납 자동 안내 메일</td><td>SQL Server 미납 조건 조회 쿼리 작성</td><td>개발</td><td>0.5</td></tr>
+                  <tr><td>스케줄러 구현 (Timer / Task Scheduler)</td><td>개발</td><td>1.5</td></tr>
+                  <tr><td>단계별 메일 발송 로직 (1차/2차 안내)</td><td>개발</td><td>1.0</td></tr>
+                  <tr><td rowspan="2">계약 갱신 안내 메일</td><td>SQL Server 계약 만료 조건 조회</td><td>개발</td><td>0.5</td></tr>
+                  <tr><td>자동 메일 발송 로직</td><td>개발</td><td>1.0</td></tr>
+                  <tr><td>알림 설정 관리</td><td>미납/갱신 기준일 설정 UI, 설정값 저장/조회</td><td>개발</td><td>1.0</td></tr>
+                  <tr><td>메일 템플릿</td><td>미납 안내 / 계약 갱신 메일 HTML 템플릿</td><td>개발</td><td>0.5</td></tr>
+                  <tr><td>발송 이력 관리</td><td>발송 로그 기록 및 조회 기능</td><td>개발</td><td>0.5</td></tr>
+                  <tr><td>QA/테스트</td><td>단위 테스트, 시나리오 기반 통합 테스트</td><td>QA</td><td>1.0</td></tr>
+                  <tr><td>배포/인수인계</td><td>설치 파일 빌드, 기술 문서, 인수인계</td><td>배포</td><td>0.5</td></tr>
+                </tbody>
+              </table>
+
+              <h2>산정 기준</h2>
+              <ul>
+                <li>1 M/D = 8시간 기준 (1인 1일 작업량)</li>
+                <li>주 5일 근무 기준</li>
+                <li>버퍼 10~15% 포함</li>
+                <li>유사 프로젝트 수행 경험 기반 효율적 개발</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+
+        <!-- PAGE: PRD -->
+        <div id="page-prd" class="page-section space-y-6">
+          <div class="rounded-2xl border border-slate-200/70 bg-white/95 p-5 shadow-soft backdrop-blur md:p-8">
+            <article class="doc-content">
+              <h1>PRD (Product Requirements Document)</h1>
+              <blockquote>프로젝트 요구사항을 정의하고 기능 범위를 명확히 합니다.</blockquote>
+
+              <h2>1. 프로젝트 배경 및 목적</h2>
+              <p>현재 자체 개발하여 운영 중인 공유오피스 관리 프로그램(PC 설치형, C#)은 입주사 관리, 계약 관리, 청구서 생성/발송, 매출 관리 등 핵심 기능을 갖추고 있습니다. 그러나 청구서 발송 후 미납 관리와 계약 갱신 안내가 수동으로 이루어지고 있어, 관리 누락과 비효율이 발생하고 있습니다.</p>
+              <p><strong>목적:</strong> 미납 자동 안내 메일과 계약 갱신 사전 안내 메일 기능을 추가하여, 운영 효율을 높이고 매출 누수를 방지합니다.</p>
+
+              <h2>2. 사용자 정의</h2>
+              <table>
+                <thead>
+                  <tr><th>사용자 유형</th><th>설명</th><th>주요 기능</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>관리자 (공유오피스 운영자)</td><td>알림 설정 관리, 발송 이력 확인</td><td>미납 기준일/갱신 기준일 설정, 발송 이력 조회, 수동 재발송</td></tr>
+                  <tr><td>입주사 (메일 수신자)</td><td>미납 안내 및 계약 갱신 메일 수신</td><td>미납 안내 메일 확인, 계약 갱신 안내 메일 확인</td></tr>
+                </tbody>
+              </table>
+
+              <h2>3. 기능 요구사항</h2>
+
+              <h3>3.1 미납 자동 안내 메일 발송</h3>
+              <ul>
+                <li><strong>[필수]</strong> 청구서 발행 후 미납 상태인 고객을 SQL Server에서 자동 조회</li>
+                <li><strong>[필수]</strong> 설정된 기준일(예: 3일, 7일)에 따라 단계별 안내 메일 자동 발송</li>
+                <li><strong>[필수]</strong> 기존 SMTP 메일 발송 기능 활용</li>
+                <li><strong>[필수]</strong> 중복 발송 방지 로직 (동일 건에 대해 1회만 발송)</li>
+              </ul>
+
+              <h3>3.2 계약 갱신 사전 안내 메일 발송</h3>
+              <ul>
+                <li><strong>[필수]</strong> 계약 종료 예정 고객을 SQL Server에서 자동 조회</li>
+                <li><strong>[필수]</strong> 계약 종료 N일 전(기본 30일) 갱신 안내 메일 자동 발송</li>
+                <li><strong>[필수]</strong> 이미 갱신 완료된 계약은 발송 제외</li>
+              </ul>
+
+              <h3>3.3 알림 설정 관리</h3>
+              <ul>
+                <li><strong>[필수]</strong> 미납 기준일 설정 (1차/2차 안내 일수 지정)</li>
+                <li><strong>[필수]</strong> 계약 갱신 사전 안내 기준일 설정</li>
+                <li><strong>[선택]</strong> 메일 템플릿 편집 기능</li>
+                <li><strong>[선택]</strong> 자동 발송 ON/OFF 스위치</li>
+              </ul>
+
+              <h3>3.4 발송 이력 관리</h3>
+              <ul>
+                <li><strong>[필수]</strong> 발송 일시, 수신자, 발송 유형(미납/갱신), 발송 결과 로그</li>
+                <li><strong>[선택]</strong> 발송 이력 검색 및 필터링</li>
+                <li><strong>[선택]</strong> 발송 실패 건 재발송 기능</li>
+              </ul>
+
+              <h2>4. 비기능 요구사항</h2>
+              <table>
+                <thead>
+                  <tr><th>항목</th><th>요구사항</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>안정성</td><td>기존 프로그램 기능에 영향 없음 보장</td></tr>
+                  <tr><td>호환성</td><td>기존 DB 구조 변경 없음 (필요 시 신규 테이블만 추가)</td></tr>
+                  <tr><td>자동화</td><td>Windows Task Scheduler 또는 Timer 기반 자동 실행</td></tr>
+                  <tr><td>로깅</td><td>발송 이력 및 오류 로그 기록</td></tr>
+                  <tr><td>설정 가능성</td><td>관리자가 기준일, 발송 시간 등을 UI에서 변경 가능</td></tr>
+                </tbody>
+              </table>
+
+              <h2>5. 기술 제약사항</h2>
+              <ul>
+                <li>기존 C# 소스코드 기반 기능 추가 (신규 프레임워크 도입 불필요)</li>
+                <li>SQL Server 기존 테이블 구조 유지 (추가 테이블은 허용)</li>
+                <li>기존 SMTP 메일 발송 기능 재활용</li>
+                <li>Windows 환경 PC 설치형 프로그램 (웹/클라우드 전환 불필요)</li>
+              </ul>
+
+              <h2>6. 범위 외 사항 (Out of Scope)</h2>
+              <ul>
+                <li>기존 프로그램 기능 수정 또는 리팩토링</li>
+                <li>DB 스키마 변경 (기존 테이블 구조 변경)</li>
+                <li>SMS/카카오 알림톡 발송 (별도 옵션으로 진행)</li>
+                <li>모바일 앱 알림 (푸시 알림)</li>
+                <li>웹 기반 관리자 대시보드</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+
+        <!-- PAGE: 일정 제안 -->
+        <div id="page-timeline" class="page-section space-y-6">
+          <div class="rounded-2xl border border-slate-200/70 bg-white/95 p-5 shadow-soft backdrop-blur md:p-8">
+            <article class="doc-content">
+              <h1>일정 제안</h1>
+              <blockquote>총 14일 기준 단계별 마일스톤 및 산출물을 제안합니다.</blockquote>
+
+              <h2>전체 일정 요약</h2>
+              <table>
+                <thead>
+                  <tr><th>단계</th><th>기간</th><th>주요 산출물</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Phase 1: 분석/설계</td><td>Day 1–3</td><td>기존 시스템 분석서, 알림 로직 설계서, ERD (추가 테이블)</td></tr>
+                  <tr><td>Phase 2: 핵심 개발</td><td>Day 4–10</td><td>미납 안내 기능, 계약 갱신 안내 기능, 설정 UI, 스케줄러</td></tr>
+                  <tr><td>Phase 3: QA/배포</td><td>Day 11–14</td><td>테스트 결과서, 설치 패키지, 인수인계 문서</td></tr>
+                </tbody>
+              </table>
+            </article>
+          </div>
+
+          <div class="rounded-2xl border border-slate-200/70 bg-white/95 p-5 shadow-soft backdrop-blur md:p-8">
+            <h2 class="mb-4 text-sm font-semibold tracking-[0.14em] text-slate-500">상세 타임라인</h2>
+            <div class="timeline">
+              <div class="timeline-item">
+                <p class="text-sm font-semibold tracking-[0.14em] text-sky-700">PHASE 1</p>
+                <h4 class="text-base font-semibold text-slate-900">분석 및 설계</h4>
+                <p class="mb-1 text-sm font-semibold text-amber-600">Day 1–3</p>
+                <p class="text-sm leading-7 text-slate-600">기존 C# 소스코드 구조 분석, DB 스키마 파악, 기존 메일 발송 로직 분석, 알림 자동화 로직 설계</p>
+                <ul class="mt-2 list-disc pl-5 text-sm text-slate-500">
+                  <li>산출물: 기존 시스템 분석서, 알림 로직 설계서, 추가 테이블 ERD</li>
+                  <li>마일스톤 리뷰: 설계 방향 확인 미팅</li>
+                </ul>
+              </div>
+              <div class="timeline-item">
+                <p class="text-sm font-semibold tracking-[0.14em] text-sky-700">PHASE 2</p>
+                <h4 class="text-base font-semibold text-slate-900">핵심 기능 개발</h4>
+                <p class="mb-1 text-sm font-semibold text-amber-600">Day 4–10</p>
+                <p class="text-sm leading-7 text-slate-600">미납 자동 안내 메일(1차/2차), 계약 갱신 사전 안내 메일, 알림 설정 관리 UI, 스케줄러 구현, 발송 이력 관리</p>
+                <ul class="mt-2 list-disc pl-5 text-sm text-slate-500">
+                  <li>Day 4–6: 미납 자동 안내 메일 기능 (SQL 쿼리 + 스케줄러 + 발송 로직)</li>
+                  <li>Day 7–8: 계약 갱신 안내 메일 기능</li>
+                  <li>Day 9–10: 설정 UI, 발송 이력, 메일 템플릿</li>
+                  <li>산출물: 기능 구현 완료 버전, 중간 데모</li>
+                </ul>
+              </div>
+              <div class="timeline-item">
+                <p class="text-sm font-semibold tracking-[0.14em] text-sky-700">PHASE 3</p>
+                <h4 class="text-base font-semibold text-slate-900">QA 및 배포</h4>
+                <p class="mb-1 text-sm font-semibold text-amber-600">Day 11–14</p>
+                <p class="text-sm leading-7 text-slate-600">단위 테스트, 시나리오 기반 통합 테스트, 설치 패키지 생성, 인수인계 문서 작성</p>
+                <ul class="mt-2 list-disc pl-5 text-sm text-slate-500">
+                  <li>Day 11–12: QA (미납 조건별 발송 테스트, 계약 갱신 발송 테스트, 중복 발송 방지 검증)</li>
+                  <li>Day 13–14: 배포 패키지 생성, 인수인계 문서, 최종 리뷰</li>
+                  <li>산출물: 테스트 결과서, 설치 패키지, 인수인계 문서</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-slate-200/70 bg-white/95 p-5 shadow-soft backdrop-blur md:p-8">
+            <article class="doc-content">
+              <h2>마일스톤 체크포인트</h2>
+              <table>
+                <thead>
+                  <tr><th>마일스톤</th><th>시점</th><th>검수 기준</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>M1: 설계 완료</td><td>Day 3</td><td>기존 시스템 분석서 및 알림 로직 설계서 승인</td></tr>
+                  <tr><td>M2: 핵심 기능 완료</td><td>Day 10</td><td>미납 안내 + 계약 갱신 안내 기능 동작 확인 (데모)</td></tr>
+                  <tr><td>M3: 최종 납품</td><td>Day 14</td><td>테스트 통과, 설치 패키지, 인수인계 완료</td></tr>
+                </tbody>
+              </table>
+
+              <h2>커뮤니케이션 계획</h2>
+              <table>
+                <tr><th>항목</th><th>방식</th><th>주기</th></tr>
+                <tr><td>일일 진행 공유</td><td>Slack / 카카오톡</td><td>매일</td></tr>
+                <tr><td>주간 미팅</td><td>Zoom / Google Meet</td><td>주 1회</td></tr>
+                <tr><td>마일스톤 리뷰</td><td>화면 공유 + 문서</td><td>단계 완료 시</td></tr>
+                <tr><td>이슈 트래킹</td><td>GitHub Issues</td><td>상시</td></tr>
+              </table>
+            </article>
+          </div>
+        </div>
+
+        <!-- PAGE: 포트폴리오 -->
+        <div id="page-portfolio" class="page-section space-y-6">
+          <div class="rounded-2xl border border-slate-200/70 bg-white/95 p-5 shadow-soft backdrop-blur md:p-8">
+            <article class="doc-content">
+              <h1>유사 프로젝트 경험</h1>
+              <blockquote>본 프로젝트와 유사한 기능/기술 스택을 활용한 수행 경험을 소개합니다.</blockquote>
+            </article>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div class="rounded-2xl border border-slate-200/70 bg-white/90 p-4 text-center shadow-soft backdrop-blur">
+              <p class="text-2xl font-bold text-sky-700">13+</p>
+              <p class="mt-1 text-sm text-slate-500">완료 프로젝트</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200/70 bg-white/90 p-4 text-center shadow-soft backdrop-blur">
+              <p class="text-2xl font-bold text-sky-700">7년+</p>
+              <p class="mt-1 text-sm text-slate-500">개발 경력</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200/70 bg-white/90 p-4 text-center shadow-soft backdrop-blur">
+              <p class="text-2xl font-bold text-sky-700">3건</p>
+              <p class="mt-1 text-sm text-slate-500">유사 프로젝트</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200/70 bg-white/90 p-4 text-center shadow-soft backdrop-blur">
+              <p class="text-2xl font-bold text-sky-700">14일</p>
+              <p class="mt-1 text-sm text-slate-500">제안 기간</p>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <!-- EZ-Approve -->
+            <div class="rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-soft backdrop-blur md:p-8">
+              <div class="mb-3 inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold tracking-[0.12em] bg-sky-100 text-sky-700 border-sky-200">B2B SaaS</div>
+              <h3 class="text-lg font-semibold tracking-tight text-slate-900">EZ-Approve — 전자결재 관리 SaaS 플랫폼</h3>
+              <p class="mt-1 text-sm text-slate-400">B2B SaaS / 전자결재 · 2026.01~2026.03 (9주)</p>
+              <div class="mt-3 doc-content">
+                <h4>프로젝트 개요</h4>
+                <p>기업용 다단계 전자결재 엔진(8종 결재 액션)을 탑재한 SaaS 플랫폼. 50+ 페이지, 120-150 API 엔드포인트, 7 사용자 역할 기반 관리 시스템 구축.</p>
+                <h4>핵심 기능</h4>
+                <ul>
+                  <li>Gmail SMTP 이메일 발송 및 Ppurio SMS 자동 알림 기능</li>
+                  <li>다단계 결재 워크플로우 (상신, 합의, 전결, 선결, 후결, 대결)</li>
+                  <li>토큰 기반 외부 셀프서비스 포탈</li>
+                  <li>Lexical 리치 에디터 + 실시간 공동 편집(CRDT/Yjs)</li>
+                </ul>
+                <h4>본 프로젝트와의 유사점</h4>
+                <p><strong>이메일/SMS 자동 발송 시스템</strong>을 구축한 경험이 직접적으로 적용됩니다. Gmail SMTP와 Ppurio SMS를 활용한 자동 알림 아키텍처, 조건 기반 워크플로우 트리거 로직이 미납 안내 및 계약 갱신 알림 기능과 동일한 패턴입니다.</p>
+                <h4>기술 스택</h4>
+                <div class="flex flex-wrap gap-1.5 not-prose">
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">NestJS</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">Next.js</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">TypeScript</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">MySQL</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">SMTP</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">SMS API</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Harmony Link -->
+            <div class="rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-soft backdrop-blur md:p-8">
+              <div class="mb-3 inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold tracking-[0.12em] bg-sky-100 text-sky-700 border-sky-200">B2B SaaS</div>
+              <h3 class="text-lg font-semibold tracking-tight text-slate-900">Harmony Link — 시니어 주간보호 관리 플랫폼</h3>
+              <p class="mt-1 text-sm text-slate-400">B2B SaaS / 헬스케어 · 2025 (6개월)</p>
+              <div class="mt-3 doc-content">
+                <h4>프로젝트 개요</h4>
+                <p>시니어 주간보호센터 관리를 위한 멀티플랫폼(Android, iOS, Web, macOS, Windows, Linux) 관리 시스템. 133K+ LOC, 140+ API 엔드포인트.</p>
+                <h4>핵심 기능</h4>
+                <ul>
+                  <li>Firebase FCM 기반 실시간 자동 알림 (푸시, 이메일)</li>
+                  <li>투약 스케줄 기반 자동 리마인더 시스템</li>
+                  <li>케어 로그 관리 및 보호자 커뮤니케이션</li>
+                  <li>멀티테넌트 아키텍처 (다시설 관리)</li>
+                </ul>
+                <h4>본 프로젝트와의 유사점</h4>
+                <p><strong>스케줄 기반 자동 알림 시스템</strong>의 설계 패턴이 직접 적용됩니다. 투약 시간/케어 일정 기반으로 자동 리마인더를 발송하는 아키텍처가 미납 기준일/계약 만료일 기반 자동 메일 발송과 동일한 구조입니다.</p>
+                <h4>기술 스택</h4>
+                <div class="flex flex-wrap gap-1.5 not-prose">
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">Flutter</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">NestJS</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">Next.js</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">MySQL</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">AWS CDK</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">Firebase FCM</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Series-B -->
+            <div class="rounded-2xl border border-slate-200/70 bg-white/90 p-5 shadow-soft backdrop-blur md:p-8">
+              <div class="mb-3 inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold tracking-[0.12em] bg-sky-100 text-sky-700 border-sky-200">핀테크</div>
+              <h3 class="text-lg font-semibold tracking-tight text-slate-900">Series-B — VC 펀드 관리 플랫폼</h3>
+              <p class="mt-1 text-sm text-slate-400">핀테크 / VC / 펀드 관리 · 2023.11~2024.12 (14개월)</p>
+              <div class="mt-3 doc-content">
+                <h4>프로젝트 개요</h4>
+                <p>VC 펀드 라이프사이클(GP/LP/스타트업) 전체를 관리하는 플랫폼. PR 1,652건, 50+ 페이지, 80+ 엔티티, 200-300+ API 엔드포인트.</p>
+                <h4>핵심 기능</h4>
+                <ul>
+                  <li>이메일(SMTP) + SMS(Ppurio) 자동 발송 시스템</li>
+                  <li>기한 기반 자동 알림 (투자 보고 마감, 출자 일정 등)</li>
+                  <li>VICS 규제 보고 자동화 (5종 양식)</li>
+                  <li>다단계 결재 워크플로우 및 AI 투자 보고서 생성</li>
+                </ul>
+                <h4>본 프로젝트와의 유사점</h4>
+                <p><strong>기한 기반 자동 이메일/SMS 알림</strong> 시스템을 대규모로 구축한 경험이 있습니다. 투자 보고 마감일, 출자 일정 등 날짜 기반으로 자동 알림을 발송하는 로직이 미납 기준일/계약 만료일 기반 알림과 완전히 동일한 패턴입니다.</p>
+                <h4>기술 스택</h4>
+                <div class="flex flex-wrap gap-1.5 not-prose">
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">Next.js</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">NestJS</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">MySQL</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">SMTP</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">SMS API</span>
+                  <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm text-slate-500">AWS</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-sky-200/70 bg-gradient-to-br from-sky-50 to-brand-50 p-6 text-center shadow-soft md:p-10">
+            <h2 class="text-xl font-bold tracking-tight text-slate-900 md:text-2xl">함께 만들어 가겠습니다</h2>
+            <p class="mx-auto mt-3 max-w-lg text-sm leading-7 text-slate-600">프로젝트에 대해 더 자세한 논의를 원하시면 미팅을 신청해 주세요.</p>
+          </div>
+        </div>
+
+        <!-- Bottom Page Navigation -->
+        <div id="page-nav" class="mt-6 flex items-center justify-between gap-4" style="display:none;">
+          <a id="nav-prev" href="#home"
+             class="group flex items-center gap-2 rounded-2xl border border-slate-200/70 bg-white/90 px-5 py-3 shadow-soft backdrop-blur transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white">
+            <svg class="w-5 h-5 text-slate-400 transition group-hover:text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            <span>
+              <span class="block text-sm text-slate-400">이전</span>
+              <span id="nav-prev-label" class="block text-sm font-semibold text-slate-700 group-hover:text-sky-700">홈</span>
+            </span>
+          </a>
+          <a id="nav-next" href="#overview"
+             class="group flex items-center gap-2 rounded-2xl border border-slate-200/70 bg-white/90 px-5 py-3 shadow-soft backdrop-blur transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white text-right ml-auto">
+            <span>
+              <span class="block text-sm text-slate-400">다음</span>
+              <span id="nav-next-label" class="block text-sm font-semibold text-slate-700 group-hover:text-sky-700">프로젝트 소개</span>
+            </span>
+            <svg class="w-5 h-5 text-slate-400 transition group-hover:text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </a>
+        </div>
+
+      </main>
+    </div>
+
+    <footer class="mt-10 border-t border-slate-200 pt-6 text-sm text-slate-500">
+      &copy; 2026 &middot; 본 제안서는 공유오피스 관리 프로그램 자동 알림 기능 추가 개발 프로젝트를 위해 작성되었습니다.
+    </footer>
+  </div>
+
+  <!-- SPA Router -->
+  <script>
+    const pages = ['home', 'overview', 'estimate', 'manday', 'prd', 'timeline', 'portfolio'];
+    const pageLabels = {
+      home: '홈', overview: '프로젝트 소개', estimate: '견적서',
+      manday: '공수계산서', prd: 'PRD', timeline: '일정 제안', portfolio: '유사 프로젝트 경험'
+    };
+
+    function navigate(pageId) {
+      if (!pages.includes(pageId)) pageId = 'home';
+      document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+      const target = document.getElementById('page-' + pageId);
+      if (target) target.classList.add('active');
+      document.querySelectorAll('.nav-link').forEach(link => {
+        if (link.dataset.page === pageId) {
+          link.className = 'nav-link block rounded-xl border px-3 py-2 text-sm border-sky-200 bg-sky-50 font-medium text-sky-700';
+        } else {
+          link.className = 'nav-link block rounded-xl border border-transparent px-3 py-2 text-sm text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900';
+        }
+      });
+      updatePageNav(pageId);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      closeSidebar();
+    }
+
+    function updatePageNav(pageId) {
+      const nav = document.getElementById('page-nav');
+      const idx = pages.indexOf(pageId);
+      const prevBtn = document.getElementById('nav-prev');
+      const nextBtn = document.getElementById('nav-next');
+      const prevLabel = document.getElementById('nav-prev-label');
+      const nextLabel = document.getElementById('nav-next-label');
+      nav.style.display = (pageId === 'home') ? 'none' : 'flex';
+      if (idx > 0) {
+        prevBtn.href = '#' + pages[idx - 1];
+        prevLabel.textContent = pageLabels[pages[idx - 1]];
+        prevBtn.style.visibility = 'visible';
+      } else {
+        prevBtn.style.visibility = 'hidden';
+      }
+      if (idx < pages.length - 1) {
+        nextBtn.href = '#' + pages[idx + 1];
+        nextLabel.textContent = pageLabels[pages[idx + 1]];
+        nextBtn.style.visibility = 'visible';
+      } else {
+        nextBtn.style.visibility = 'hidden';
+      }
+    }
+
+    function closeSidebar() {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('sidebar-backdrop').classList.remove('open');
+    }
+
+    function handleHash() {
+      const hash = (location.hash || '#home').replace('#', '');
+      navigate(hash);
+    }
+    window.addEventListener('hashchange', handleHash);
+    window.addEventListener('DOMContentLoaded', handleHash);
+
+    document.getElementById('sidebar-toggle').addEventListener('click', function() {
+      document.getElementById('sidebar').classList.toggle('open');
+      document.getElementById('sidebar-backdrop').classList.toggle('open');
+    });
+  </script>
+</body>
+</html>
